@@ -23,7 +23,8 @@ const refresh = async (data) => {
     return new Promise(async (resolve, reject) => {
         try {
             let funny = await JSON.stringify(data);
-            fs.writeFile(path.join(__dirname, "data.json"), funny, err => console.log(err))
+            console.log(JSON.stringify(funny));
+            fs.writeFile(path.join(__dirname, "data.json"), funny, err => { if (err) { console.log(err) } })
             resolve("success");
         } catch (err) {
             reject(err);
@@ -37,8 +38,6 @@ const startApp = async () => {
             console.log(err)
         } else {
             let data = JSON.parse(x);
-
-            console.log(data)
 
             app.use(express.static(path.join(__dirname, 'public')));
 
@@ -55,13 +54,19 @@ const startApp = async () => {
                         res.sendStatus(400)
                     } else {
                         let instances = data[id].instances;
-                        instances[req.query.location] = {
-                            quantity: req.query.quantity
+                        let quantity = req.query.quantity;
+                        let location = req.query.location;
+                        if (quantity != 0) {
+                            instances[location] = {
+                                quantity: quantity
+                            }
+                            await refresh(data);
+                            res.sendStatus(200);
+                        } else {
+                            delete instances[location]
+                            await refresh(data);
+                            res.sendStatus(200);
                         }
-                        data[id].instances = instances;
-                        console.log(JSON.stringify(data));
-                        await refresh(data);
-                        res.sendStatus(200)
                     }
                 } catch (err) {
                     console.log(err);
@@ -79,9 +84,8 @@ const startApp = async () => {
                     const id = hash.update(name).digest('hex');
                     data[id] = {
                         name: name,
-                        instances: []
+                        instances: {}
                     };
-                    console.log(JSON.stringify(data))
                     await refresh(data);
                     res.sendStatus(200);
                 } catch (err) {
@@ -89,6 +93,8 @@ const startApp = async () => {
                     res.sendStatus(500);
                 }
             })
+
+            // GET FUNCTIONS
 
             // return all ids in database
             app.get('/getids', async (req, res) => {
@@ -106,6 +112,50 @@ const startApp = async () => {
                 } catch (err) {
                     console.log(err);
                     res.sendStatus(500);
+                }
+            })
+
+            // return search results
+            app.get('/search', async (req, res) => {
+                if (req.query.query) {
+                    try {
+                        let query = req.query.query.toLowerCase();
+                        let result = { data: [] }
+                        let keys = Object.keys(data);
+                        for (let i = 0; i < keys.length; i++) {
+                            let key = keys[i];
+                            let item = data[key];
+                            if (item.name.toLowerCase().indexOf(query) != -1) {
+                                result.data.push({
+                                    item: item,
+                                    id: key
+                                });
+                            }
+                        }
+                        res.send(result)
+                    } catch {
+                        res.sendStatus(500);
+                    }
+                }
+                else if (req.query.all) {
+                    try {
+                        let result = { data: [] }
+                        let keys = Object.keys(data);
+                        for (let i = 0; i < keys.length; i++) {
+                            let key = keys[i];
+                            let item = data[key];
+                            result.data.push({
+                                item: item,
+                                id: key
+                            });
+                        }
+                        res.send(result)
+                    } catch {
+                        res.sendStatus(500);
+                    }
+                }
+                else {
+                    res.sendStatus(400);
                 }
             })
 

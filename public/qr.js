@@ -4,6 +4,8 @@ const main = async () => {
         let data = await (await fetch("/generateqr?test="+text)).text();
         document.getElementById("result").setAttribute("src", data);
         print()
+    }else{
+        document.body.innerHTML = "<p>ERROR!<br>MISSING 'text' PARAMETER!</p>"
     }
 }
 
